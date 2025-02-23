@@ -20,8 +20,6 @@ func I18nMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
 		if lang == "" {
 			lang = "en"
 		}
-		bundle = i18n.NewBundle(language.English)
-		bundle.MustLoadMessageFile("en.json")
 		localizer := i18n.NewLocalizer(bundle, lang)
 		c.Set("localizer", localizer)
 		return next(c)

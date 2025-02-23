@@ -319,6 +319,11 @@ func (r *LoanDisbursementRepoImpl) GetAllPage(ctx context.Context, request LoanD
 		Offset(request.Offset).
 		PlaceholderFormat(sq.Dollar)
 
+	if request.Status != "" {
+		pageBuilder = pageBuilder.Where(sq.Eq{LoanDisbursementTable.DisbursementStatus: request.Status})
+
+	}
+
 	// Execute the query and fetch the paginated data
 	var disbursements []LoanDisbursement
 	rows, err := pageBuilder.RunWith(txn).QueryContext(ctx)

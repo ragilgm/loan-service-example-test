@@ -1,0 +1,279 @@
+{
+	"info": {
+		"_postman_id": "83363186-be08-411e-9fb9-41c654ab7bb1",
+		"name": "golang-project-test",
+		"schema": "https://schema.getpostman.com/json/collection/v2.0.0/collection.json",
+		"_exporter_id": "29016835"
+	},
+	"item": [
+		{
+			"name": "loan",
+			"item": [
+				{
+					"name": "create",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"borrower_id\": 123,\r\n    \"request_amount\": 1000000.00,\r\n    \"loan_grade\": \"A\",\r\n    \"loan_type\": \"productive\",\r\n    \"rate\": 5.5,\r\n    \"tenures\": 12,\r\n    \"detail\": {\r\n        \"business_name\": \"ABC Manufacturing\",\r\n        \"business_type\": \"Manufacturing\",\r\n        \"business_address\": \"123 Industrial Road, Cityville, ST 12345\",\r\n        \"business_phone_number\": \"62878\",\r\n        \"business_email\": \"contact@abcmfg.com\",\r\n        \"business_registration_number\": \"REG12345678\",\r\n        \"business_annual_revenue\": 5000000.00,\r\n        \"business_expense\": 2000000.00,\r\n        \"business_owner_name\": \"John Doe\",\r\n        \"business_description\": \"ABC Manufacturing specializes in producing high-quality widgets and gadgets.\",\r\n        \"loan_purpose\": \"Expand production capacity and purchase new machinery\",\r\n        \"business_age\": 10,\r\n        \"business_sector\": \"Manufacturing\"\r\n    }\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "localhost:9090/loans"
+					},
+					"response": []
+				},
+				{
+					"name": "get all",
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "localhost:9090/loans?page=1&size=10",
+							"host": [
+								"localhost"
+							],
+							"port": "9090",
+							"path": [
+								"loans"
+							],
+							"query": [
+								{
+									"key": "page",
+									"value": "1"
+								},
+								{
+									"key": "size",
+									"value": "10"
+								},
+								{
+									"key": "loan_status",
+									"value": "approved",
+									"disabled": true
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "get by id",
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n  \"borrower_id\": 123456789,\r\n  \"request_amount\": 1000000.00,\r\n  \"loan_grade\": \"A\",\r\n  \"loan_type\": 1,\r\n  \"rate\": 5.5,\r\n  \"tenures\": 12,\r\n  \"agreement_letter_link\":\"http://google.com\"\r\n}\r\n",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "localhost:9090/loans/1"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "loan_approval",
+			"item": [
+				{
+					"name": "get all",
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "localhost:9090/loans/approvals?page=1&size=10",
+							"host": [
+								"localhost"
+							],
+							"port": "9090",
+							"path": [
+								"loans",
+								"approvals"
+							],
+							"query": [
+								{
+									"key": "page",
+									"value": "1"
+								},
+								{
+									"key": "size",
+									"value": "10"
+								},
+								{
+									"key": "approval_status",
+									"value": "pending",
+									"disabled": true
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "update approval",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n  \"staff_id\": 12345,\r\n  \"approval_status\": \"approved\",\r\n  \"approval_documents\": [\r\n    {\r\n      \"document_type\": \"home_visited\",\r\n      \"file_url\": \"http://example.com/ktp.pdf\",\r\n      \"description\": \"Document about visited location\"\r\n    },\r\n    {\r\n      \"document_type\": \"store_document\",\r\n      \"file_url\": \"http://example.com/ktp.pdf\",\r\n      \"description\": \"Document about real store\"\r\n    }\r\n  ]\r\n}\r\n",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "localhost:9090/loans/approvals/1"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "loan_funding",
+			"item": [
+				{
+					"name": "create",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n  \"order_number\": \"LN1234567890\",\r\n  \"loan_id\": 1,\r\n  \"lender_id\": 67894,\r\n  \"lender_email\": \"lender@example.com\",\r\n  \"investment_amount\": 100000.00,\r\n  \"lender_agreement_url\": \"http://example.com/agreement\"\r\n}\r\n",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "localhost:9090/loan-fundings"
+					},
+					"response": []
+				},
+				{
+					"name": "get loan funding by lender id",
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n  \"order_number\": \"LN1234567890\",\r\n  \"loan_id\": 1,\r\n  \"lender_id\": 67894,\r\n  \"lender_email\": \"lender@example.com\",\r\n  \"investment_amount\": 100000.00,\r\n  \"lender_agreement_url\": \"http://example.com/agreement\"\r\n}\r\n",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "localhost:9090/loan-fundings/lender/67894"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "disburse",
+			"item": [
+				{
+					"name": "get all",
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "localhost:9090/loan-disbursements?page=1&size=10&approval_status=pending",
+							"host": [
+								"localhost"
+							],
+							"port": "9090",
+							"path": [
+								"loan-disbursements"
+							],
+							"query": [
+								{
+									"key": "page",
+									"value": "1"
+								},
+								{
+									"key": "size",
+									"value": "10"
+								},
+								{
+									"key": "approval_status",
+									"value": "pending"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "update disbursement state",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"loan_id\":1,\r\n    \"disbursement_status\":\"completed\",\r\n    \"staff_id\":123,\r\n    \"signed_agreement_url\":\"http://google.com\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "localhost:9090/loan-disbursements/1"
+					},
+					"response": []
+				}
+			]
+		}
+	]
+}

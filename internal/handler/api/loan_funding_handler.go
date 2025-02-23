@@ -46,9 +46,7 @@ func (lh *LoanFundingHandler) Create(c echo.Context) error {
 		return err
 	}
 
-	return c.JSON(http.StatusCreated, map[string]interface{}{
-		"message": "Loan funding created successfully",
-	})
+	return middleware.SendSuccess(c, "Loan funding created")
 }
 
 // GetByID - Handler to get loan funding by ID

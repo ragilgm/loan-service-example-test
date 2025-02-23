@@ -1,0 +1,14 @@
+version: '3.9'
+
+services:
+  loan-service:
+    build: .
+    ports:
+      - "9090:9090"
+
+    networks:
+      - test-network
+
+networks:
+  test-network:
+    external: true
