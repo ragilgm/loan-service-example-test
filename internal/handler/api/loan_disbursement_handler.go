@@ -5,7 +5,6 @@ import (
 	"github.com/labstack/echo"
 	"github.com/test/loan-service/internal/dto"
 	"github.com/test/loan-service/internal/enum"
-	"github.com/test/loan-service/internal/handler/middleware"
 	"github.com/test/loan-service/internal/service"
 	"go.uber.org/dig"
 	"net/http"
@@ -47,7 +46,7 @@ func (ldh *LoanDisbursementHandler) Create(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	return middleware.SendSuccess(c, nil)
+	return dto.SendSuccess(c, nil)
 }
 
 // GetByID - Handler to get loan disbursement by ID
@@ -55,7 +54,7 @@ func (ldh *LoanDisbursementHandler) GetByID(c echo.Context) error {
 	disbursementIDStr := c.Param("id")
 	disbursementID, err := strconv.ParseInt(disbursementIDStr, 10, 64)
 	if err != nil {
-		return c.JSON(http.StatusBadRequest, dto.ResponseError{Message: "Invalid disbursement ID"})
+		return err
 	}
 
 	ctx := c.Request().Context()
@@ -66,7 +65,7 @@ func (ldh *LoanDisbursementHandler) GetByID(c echo.Context) error {
 		return err
 	}
 
-	return middleware.SendSuccess(c, loanDisbursement)
+	return dto.SendSuccess(c, loanDisbursement)
 }
 
 // GetAll - Handler to get all loan disbursements with pagination and optional status filter
@@ -112,7 +111,7 @@ func (ldh *LoanDisbursementHandler) GetAll(c echo.Context) error {
 		return err
 	}
 
-	return middleware.SendSuccess(c, dto.PaginationHelper(loanDisbursements, totalRecords, int(page), int(size)))
+	return dto.SendSuccess(c, dto.PaginationHelper(loanDisbursements, totalRecords, int(page), int(size)))
 
 }
 
@@ -121,7 +120,7 @@ func (ldh *LoanDisbursementHandler) Update(c echo.Context) error {
 	disbursementIDStr := c.Param("id")
 	disbursementID, err := strconv.ParseInt(disbursementIDStr, 10, 64)
 	if err != nil {
-		return middleware.SendSuccess(c, "Error updating LoanDisbursement")
+		return dto.SendSuccess(c, "Error updating LoanDisbursement")
 	}
 
 	var request dto.UpdateLoanDisbursementRequestDTO
@@ -138,5 +137,5 @@ func (ldh *LoanDisbursementHandler) Update(c echo.Context) error {
 	}
 
 	// Return a successful response
-	return middleware.SendSuccess(c, "Loan disbursement updated")
+	return dto.SendSuccess(c, "Loan disbursement updated")
 }

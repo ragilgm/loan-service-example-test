@@ -45,6 +45,7 @@ func NewKafkaClients(cfgs KafkaCfgs) KafkaClients {
 		Brokers:     []string{cfgs.Kafka.BrokerAddress},
 		GroupTopics: []string{string(consts.ApprovalLoanTopic), string(consts.LoanDisburseTopic), string(consts.FundingProcessTopic)},
 		GroupID:     cfgs.Kafka.ConsumerGroup,
+		StartOffset: kafka.FirstOffset,
 		// Mengatur timeout sesuai dengan kebutuhan
 		SessionTimeout: cfgs.Kafka.Timeout,
 	})

@@ -9,3 +9,6 @@ CREATE TABLE approval_documents (
                                     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,    -- Date of document record update (requires manual update in PostgreSQL)
                                     deleted_at TIMESTAMP DEFAULT NULL                  -- Date of document record deletion (if applicable)
 );
+
+CREATE INDEX idx_approval_documents_loan_approval_id ON approval_documents (loan_approval_id);
+

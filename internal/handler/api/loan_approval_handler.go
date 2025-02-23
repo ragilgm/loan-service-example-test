@@ -3,7 +3,6 @@ package api
 import (
 	"errors"
 	"github.com/test/loan-service/internal/enum"
-	"github.com/test/loan-service/internal/handler/middleware"
 	"strconv"
 
 	"github.com/labstack/echo"
@@ -70,7 +69,7 @@ func (ic *LoanApprovalHandler) GetAllPage(c echo.Context) (err error) {
 	}
 
 	// Return paginated response
-	return middleware.SendSuccess(c, dto.PaginationHelper(loans, totalRecords, page, size))
+	return dto.SendSuccess(c, dto.PaginationHelper(loans, totalRecords, page, size))
 }
 
 func (ic *LoanApprovalHandler) Update(c echo.Context) error {
@@ -94,5 +93,5 @@ func (ic *LoanApprovalHandler) Update(c echo.Context) error {
 		return err
 	}
 
-	return middleware.SendSuccess(c, "Loan approval updated")
+	return dto.SendSuccess(c, "Loan approval updated")
 }

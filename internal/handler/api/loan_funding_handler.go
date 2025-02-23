@@ -4,7 +4,6 @@ import (
 	"errors"
 	"github.com/labstack/echo"
 	"github.com/test/loan-service/internal/dto"
-	"github.com/test/loan-service/internal/handler/middleware"
 	"github.com/test/loan-service/internal/service"
 	"go.uber.org/dig"
 	"net/http"
@@ -46,7 +45,7 @@ func (lh *LoanFundingHandler) Create(c echo.Context) error {
 		return err
 	}
 
-	return middleware.SendSuccess(c, "Loan funding created")
+	return dto.SendSuccess(c, "Loan funding created")
 }
 
 // GetByID - Handler to get loan funding by ID
@@ -65,7 +64,7 @@ func (lh *LoanFundingHandler) GetByID(c echo.Context) error {
 		return err
 	}
 
-	return middleware.SendSuccess(c, loanFunding)
+	return dto.SendSuccess(c, loanFunding)
 }
 
 // GetByLenderID - Handler to get all loan fundings by lender ID
@@ -84,5 +83,5 @@ func (lh *LoanFundingHandler) GetByLenderID(c echo.Context) error {
 		return err
 	}
 
-	return middleware.SendSuccess(c, loanFundings)
+	return dto.SendSuccess(c, loanFundings)
 }

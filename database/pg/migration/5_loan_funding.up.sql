@@ -19,3 +19,12 @@ CREATE TABLE loan_funding (
                               updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,                -- Date of funding record update
                               deleted_at TIMESTAMP DEFAULT NULL                   -- Date of document record deletion (if applicable)
 );
+
+
+CREATE INDEX idx_loan_funding_loan_id ON loan_funding (loan_id);
+
+CREATE INDEX idx_loan_funding_lender_id ON loan_funding (lender_id);
+
+CREATE INDEX idx_loan_funding_status ON loan_funding (status);
+
+CREATE INDEX idx_loan_funding_loan_order_number ON loan_funding (loan_order_number);

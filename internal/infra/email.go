@@ -41,7 +41,7 @@ func openSMTP(cfg *SMTPCfg) *gomail.Dialer {
 	}
 	// Set up the SMTP server configuration
 	dialer := gomail.NewDialer(cfg.Host, port, cfg.Username, cfg.Password)
-	dialer.SSL = false // For TLS, set to true if required by the mail provider
+	dialer.SSL = true // For TLS, set to true if required by the mail provider
 
 	// Return the created dialer (SMTP client)
 	return dialer

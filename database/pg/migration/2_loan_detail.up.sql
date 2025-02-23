@@ -19,3 +19,11 @@ CREATE TABLE loan_details (
                               updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,  -- Loan detail update date (will be updated via trigger)
                               deleted_at TIMESTAMP DEFAULT NULL                -- Date of loan detail deletion (if applicable)
 );
+
+CREATE INDEX idx_loan_detail_loan_id ON loan_details (loan_id);
+
+CREATE INDEX idx_loan_detail_borrower_id ON loan_details (borrower_id);
+
+CREATE INDEX idx_loan_detail_business_name ON loan_details (business_name);
+
+CREATE INDEX idx_loan_detail_business_sector ON loan_details (business_sector);

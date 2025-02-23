@@ -10,3 +10,10 @@ CREATE TABLE loans_approval (
                                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,    -- Date of record update (requires manual update in PostgreSQL)
                                 deleted_at TIMESTAMP DEFAULT NULL                  -- Date of approval record deletion (if applicable)
 );
+
+
+CREATE INDEX idx_loans_approval_loan_id ON loans_approval (loan_id);
+
+CREATE INDEX idx_loans_approval_staff_id ON loans_approval (staff_id);
+
+CREATE INDEX idx_loans_approval_approval_status ON loans_approval (approval_status);

@@ -284,7 +284,7 @@ func (s *LoanFundingSvcImpl) FundingProcess(ctx context.Context, message message
 
 			// todo trigger email
 			email := SendEmailInput{
-				To:      []string{"ragilnamasaya@gmail.com"},
+				To:      []string{loanFunding.LenderEmail},
 				Subject: "aggrement",
 				Body:    "hello world",
 			}

@@ -56,6 +56,28 @@ docker-compose -f ./docker-compose.yaml up --build -d
 Finally, apply the necessary database migrations to ensure the schema is up to date with the application.
 Run the following command:
 ```bash
+
+// install 
+1. go install github.com/golang-migrate/migrate/v4/cmd/migrate@latest
+
+// check from GOPATH 
+go env GOPATH
+
+ls "{result from gopath}\bin"
+expected result containing :
+-a----         2/21/2025   4:46 PM        8903680 migrate.exe
+
+
+expectation migrate.exe already exist
+
+// check migrate version
+migrate --version
+
+
+// install plugin postgresql migrate 
+go install -tags "postgres" github.com/golang-migrate/migrate/v4/cmd/migrate@latest
+
+// migrate database
 migrate -database "postgresql://dbuser:dbpass@:5432/dbname?sslmode=disable" -path ./database/pg/migration up
 ```
 

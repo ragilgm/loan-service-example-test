@@ -18,3 +18,13 @@ CREATE TABLE loans (
                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, -- Loan status update date
                        deleted_at TIMESTAMP DEFAULT NULL   -- Date of loan deletion (if applicable)
 );
+
+
+CREATE INDEX idx_loans_loan_code ON loans(loan_code);
+CREATE INDEX idx_loans_loan_grade ON loans(loan_grade);
+
+CREATE INDEX idx_loans_borrower_id ON loans(borrower_id);
+
+CREATE INDEX idx_loans_loan_status ON loans(loan_status);
+
+CREATE INDEX idx_loans_loan_status_borrower_id ON loans(loan_status, borrower_id);

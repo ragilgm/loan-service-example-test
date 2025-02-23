@@ -3,7 +3,6 @@ package api
 import (
 	"errors"
 	"github.com/test/loan-service/internal/enum"
-	"github.com/test/loan-service/internal/handler/middleware"
 	"strconv"
 
 	"github.com/labstack/echo"
@@ -44,7 +43,7 @@ func (ic LoanCtrlImpl) Create(c echo.Context) (err error) {
 		return err
 	}
 
-	return middleware.SendSuccess(c, "Loan created")
+	return dto.SendSuccess(c, "Loan created")
 }
 
 func (ic *LoanCtrlImpl) GetAll(c echo.Context) (err error) {
@@ -87,7 +86,7 @@ func (ic *LoanCtrlImpl) GetAll(c echo.Context) (err error) {
 	}
 
 	// Return paginated response
-	return middleware.SendSuccess(c, dto.PaginationHelper(loans, totalRecords, page, size))
+	return dto.SendSuccess(c, dto.PaginationHelper(loans, totalRecords, page, size))
 }
 
 func (ic LoanCtrlImpl) GetByID(c echo.Context) (err error) {
@@ -107,5 +106,5 @@ func (ic LoanCtrlImpl) GetByID(c echo.Context) (err error) {
 	}
 
 	// Return the loan details
-	return middleware.SendSuccess(c, loan)
+	return dto.SendSuccess(c, loan)
 }
