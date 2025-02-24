@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/asaskevich/govalidator"
 	"github.com/mitchellh/mapstructure"
 	"github.com/segmentio/kafka-go"
 	"github.com/sirupsen/logrus"
@@ -14,6 +13,7 @@ import (
 	message2 "github.com/test/loan-service/internal/dto/message"
 	"github.com/test/loan-service/internal/enum"
 	repo "github.com/test/loan-service/internal/repository"
+	"github.com/test/loan-service/internal/service/validator"
 	"github.com/test/loan-service/internal/utils"
 	"github.com/typical-go/typical-rest-server/pkg/dbtxn"
 	"go.uber.org/dig"
@@ -43,6 +43,7 @@ type (
 		DisburseSvc LoanDisbursementSvc
 		KafkaWriter *kafka.Writer
 		MailSvc     EmailSvc
+		Validator   validator.LoanFundingValidatorImpl
 	}
 )
 
@@ -52,9 +53,10 @@ func NewLoanFundingSvc(impl LoanFundingSvcImpl) LoanFundingSvc {
 
 func (s *LoanFundingSvcImpl) Create(ctx context.Context, request *dto.LoanFundingRequestDTO) (err error) {
 	// Validate the LoanFundingRequest
-	if errMsg := s.validateRequestLoanFunding(request); errMsg != "" {
-		logrus.Warnf("Loan funding validation failed: %s", errMsg)
-		return errors.New(errMsg)
+	err = s.Validator.ValidateCreate(request)
+	if err != nil {
+		logrus.Warnf("Loan funding validation failed: %s", err)
+		return err
 	}
 
 	var loan *repo.Loan
@@ -331,41 +333,6 @@ func (s *LoanFundingSvcImpl) FundingProcess(ctx context.Context, message message
 
 	logrus.Infof("Funding process completed successfully for LoanID %d", loan.ID)
 	return nil
-}
-
-func (b *LoanFundingSvcImpl) validateRequestLoanFunding(loanFunding *dto.LoanFundingRequestDTO) string {
-	// First validate using govalidator (it validates required and email fields)
-	ok, err := govalidator.ValidateStruct(loanFunding)
-	if !ok {
-		return fmt.Sprintf("Validation failed: %s", err)
-	}
-
-	// Ensure that OrderNumber is not empty
-	if loanFunding.OrderNumber == "" {
-		return "OrderNumber must be provided"
-	}
-
-	// Ensure that LoanID is provided and greater than zero
-	if loanFunding.LoanID <= 0 {
-		return "LoanID must be provided and greater than zero"
-	}
-
-	// Ensure that LenderID is provided and greater than zero
-	if loanFunding.LenderID <= 0 {
-		return "LenderID must be provided and greater than zero"
-	}
-
-	// Ensure that InvestmentAmount is greater than zero
-	if loanFunding.InvestmentAmount <= 0 {
-		return "InvestmentAmount must be greater than zero"
-	}
-
-	// Validate LenderAgreementURL if it's provided (URL validation)
-	if loanFunding.LenderAgreementURL != "" && !govalidator.IsURL(loanFunding.LenderAgreementURL) {
-		return "LenderAgreementURL is invalid"
-	}
-
-	return ""
 }
 
 func (b *LoanFundingSvcImpl) publishFundingProcess(ctx context.Context, funding repo.LoanFunding) error {

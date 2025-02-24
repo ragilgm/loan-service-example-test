@@ -3,29 +3,25 @@ package service
 import (
 	"context"
 	"errors"
-	"github.com/asaskevich/govalidator"
 	"github.com/mitchellh/mapstructure"
 	"github.com/sirupsen/logrus"
 	"github.com/test/loan-service/internal/dto"
 	repo "github.com/test/loan-service/internal/repository"
+	"github.com/test/loan-service/internal/service/models"
+	"github.com/test/loan-service/internal/service/validator"
 	"go.uber.org/dig"
 )
 
 type (
-	LoanDetailRequest struct {
-		Detail     *dto.LoanDetailRequestDTO
-		BorrowerID int64
-		LoanID     int64
-	}
-
 	LoanDetailSvc interface {
-		Create(context.Context, *LoanDetailRequest) (int64, error)
+		Create(context.Context, *models.LoanDetailRequest) (int64, error)
 		GetByLoanID(ctx context.Context, loanID int64) (*dto.LoanDetailResponseDTO, error)
 	}
 
 	LoanDetailSvcImpl struct {
 		dig.In
-		Repo repo.LoanDetailRepo
+		Repo      repo.LoanDetailRepo
+		Validator validator.LoanDetailValidatorImpl
 	}
 )
 
@@ -33,19 +29,21 @@ func NewLoanDetailSvc(impl LoanDetailSvcImpl) LoanDetailSvc {
 	return &impl
 }
 
-func (b *LoanDetailSvcImpl) Create(ctx context.Context, detailRequest *LoanDetailRequest) (int64, error) {
+func (b *LoanDetailSvcImpl) Create(ctx context.Context, detailRequest *models.LoanDetailRequest) (int64, error) {
 	logrus.WithFields(logrus.Fields{
 		"loanID":     detailRequest.LoanID,
 		"borrowerID": detailRequest.BorrowerID,
 	}).Info("Creating loan detail")
 
-	if errMsg := b.validateLoanDetail(detailRequest); errMsg != "" {
-		logrus.WithField("loanID", detailRequest.LoanID).Error("Loan detail validation failed: " + errMsg)
-		return -1, errors.New(errMsg)
+	err := b.Validator.ValidateCreate(detailRequest)
+
+	if err != nil {
+		logrus.WithField("loanID", detailRequest.LoanID).Error("Loan detail validation failed: " + err.Error())
+		return -1, err
 	}
 
 	var loanDetail repo.LoanDetail
-	err := mapstructure.Decode(detailRequest.Detail, &loanDetail)
+	err = mapstructure.Decode(detailRequest.Detail, &loanDetail)
 	if err != nil {
 		logrus.WithField("loanID", detailRequest.LoanID).WithError(err).Error("Failed to map request to loan detail")
 		return -1, errors.New("99999")
@@ -91,21 +89,4 @@ func (b *LoanDetailSvcImpl) GetByLoanID(ctx context.Context, loanID int64) (*dto
 
 	logrus.WithField("loanID", loanID).Info("Loan details fetched successfully")
 	return &detailRes, nil
-}
-
-func (b *LoanDetailSvcImpl) validateLoanDetail(loanDetail *LoanDetailRequest) string {
-	ok, err := govalidator.ValidateStruct(loanDetail)
-	if !ok || err != nil {
-		logrus.WithFields(logrus.Fields{
-			"loanID":     loanDetail.LoanID,
-			"borrowerID": loanDetail.BorrowerID,
-		}).Error("Loan detail validation failed")
-		return "10003"
-	}
-
-	logrus.WithFields(logrus.Fields{
-		"loanID":     loanDetail.LoanID,
-		"borrowerID": loanDetail.BorrowerID,
-	}).Info("Loan detail validated successfully")
-	return ""
 }

@@ -5,6 +5,7 @@ import (
 	"github.com/sirupsen/logrus"
 	repo "github.com/test/loan-service/internal/repository"
 	"github.com/test/loan-service/internal/service"
+	"github.com/test/loan-service/internal/service/validator"
 	"github.com/typical-go/typical-go/pkg/typapp"
 )
 
@@ -33,6 +34,13 @@ func init() {
 	typapp.Provide("", repo.NewApprovalDocumentRepo)
 	typapp.Provide("", repo.NewLoanFundingRepo)
 	typapp.Provide("", repo.NewLoanDisbursementRepo)
+
+	// validator dependency injection
+	typapp.Provide("loan_validator", validator.NewLoanValidator)
+	typapp.Provide("loan_approval_validator", validator.NewLoanApprovalValidator)
+	typapp.Provide("loan_funding_validator", validator.NewLoanFundingValidator)
+	typapp.Provide("loan_detail_validator", validator.NewLoanDetailValidator)
+	typapp.Provide("loan_disbursement_validator", validator.NewLoanDisbursementValidator)
 
 	// service dependency injection
 	typapp.Provide("", service.NewLoanSvc)

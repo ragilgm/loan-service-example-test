@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"github.com/asaskevich/govalidator"
 	"github.com/mitchellh/mapstructure"
 	"github.com/segmentio/kafka-go"
 	"github.com/sirupsen/logrus"
@@ -13,6 +12,8 @@ import (
 	message2 "github.com/test/loan-service/internal/dto/message"
 	"github.com/test/loan-service/internal/enum"
 	repo "github.com/test/loan-service/internal/repository"
+	"github.com/test/loan-service/internal/service/models"
+	"github.com/test/loan-service/internal/service/validator"
 	"github.com/test/loan-service/internal/utils"
 	"github.com/typical-go/typical-rest-server/pkg/dbtxn"
 	"go.uber.org/dig"
@@ -22,16 +23,10 @@ import (
 //go:generate mockgen -source=$GOFILE -destination=$PROJ/internal/generated/mock/mock_$GOPACKAGE/$GOFILE
 
 type (
-	LoanApprovalRequest struct {
-		Page   uint64
-		Size   uint64
-		Status *enum.ApprovalStatus
-	}
-
 	LoanApprovalSvc interface {
 		Create(context.Context, *dto.LoanApprovalRequestDTO) (int64, error)
 		Update(context.Context, int64, *dto.UpdateLoanApprovalRequestDTO) error
-		GetAllPage(ctx context.Context, request LoanApprovalRequest) ([]dto.LoanApprovalResponseDTO, int, error)
+		GetAllPage(ctx context.Context, request models.LoanApprovalRequest) ([]dto.LoanApprovalResponseDTO, int, error)
 	}
 
 	LoanApprovalSvcImpl struct {
@@ -39,6 +34,7 @@ type (
 		Repo                 repo.LoanApprovalRepo
 		ApprovalDocumentRepo repo.ApprovalDocumentRepo
 		KafkaWriter          *kafka.Writer
+		Validator            validator.LoanApprovalValidatorImpl
 	}
 )
 
@@ -50,13 +46,15 @@ func (b *LoanApprovalSvcImpl) Create(ctx context.Context, loanRequest *dto.LoanA
 	logrus.Infof("Creating loan approval for request: %+v", loanRequest)
 
 	// validate request
-	if errMsg := b.validateLoanApproval(loanRequest); errMsg != "" {
-		logrus.Errorf("Validation failed for loan approval: %s", errMsg)
-		return -1, errors.New(errMsg)
+	err := b.Validator.ValidateCreate(loanRequest)
+
+	if err != nil {
+		logrus.Errorf("Validation failed for loan approval: %s", err)
+		return -1, err
 	}
 
 	var approval repo.LoanApproval
-	err := mapstructure.Decode(loanRequest, &approval)
+	err = mapstructure.Decode(loanRequest, &approval)
 	if err != nil {
 		logrus.Errorf("Error decoding loan request to loan approval model: %v", err)
 		return -1, errors.New("99999")
@@ -83,9 +81,10 @@ func (b *LoanApprovalSvcImpl) Update(ctx context.Context, approvalId int64, requ
 	logrus.Infof("Updating loan approval with ID: %d", approvalId)
 
 	// validate request
-	if errMsg := b.validateUpdateLoanApproval(requestDTO); errMsg != "" {
-		logrus.Errorf("Validation failed for loan approval update: %s", errMsg)
-		return errors.New(errMsg)
+	err := b.Validator.ValidateUpdate(requestDTO)
+	if err != nil {
+		logrus.Errorf("Validation failed for loan approval update: %s", err)
+		return err
 	}
 
 	approval, err := b.Repo.GetByID(ctx, approvalId)
@@ -99,7 +98,7 @@ func (b *LoanApprovalSvcImpl) Update(ctx context.Context, approvalId int64, requ
 	}
 
 	// validate transition status
-	if !b.isValidApprovalStatusTransition(approval.ApprovalStatus, requestDTO.ApprovalStatus) {
+	if !b.Validator.ValidateTransitionStatus(approval.ApprovalStatus, requestDTO.ApprovalStatus) {
 		logrus.Warnf("Invalid status transition from %s to %s", approval.ApprovalStatus, requestDTO.ApprovalStatus)
 		return errors.New("10003")
 	}
@@ -194,7 +193,7 @@ func (b *LoanApprovalSvcImpl) publishLoanApproval(ctx context.Context, approvalI
 	return nil
 }
 
-func (b *LoanApprovalSvcImpl) GetAllPage(ctx context.Context, request LoanApprovalRequest) ([]dto.LoanApprovalResponseDTO, int, error) {
+func (b *LoanApprovalSvcImpl) GetAllPage(ctx context.Context, request models.LoanApprovalRequest) ([]dto.LoanApprovalResponseDTO, int, error) {
 	logrus.Infof("Fetching all loan approvals with pagination: Page: %d, Size: %d", request.Page, request.Size)
 
 	// Calculate offset
@@ -261,50 +260,4 @@ func (b *LoanApprovalSvcImpl) GetAllPage(ctx context.Context, request LoanApprov
 
 	logrus.Infof("Successfully fetched %d loan approvals", len(approvalDTOs))
 	return approvalDTOs, int(totalRecords), nil
-}
-
-func (b *LoanApprovalSvcImpl) validateLoanApproval(loan *dto.LoanApprovalRequestDTO) string {
-	ok, err := govalidator.ValidateStruct(loan)
-	if !ok {
-		logrus.Errorf("Validation failed for loan approval: %s", err)
-		return "10003"
-	}
-
-	return ""
-}
-
-func (b *LoanApprovalSvcImpl) validateUpdateLoanApproval(request *dto.UpdateLoanApprovalRequestDTO) string {
-	ok, err := govalidator.ValidateStruct(request)
-	if !ok {
-		logrus.Errorf("Validation failed for loan approval update: %s", err)
-		return "10003"
-	}
-
-	if !request.ApprovalStatus.IsValid() {
-		logrus.Errorf("Invalid approval status: %s", request.ApprovalStatus)
-		return "10003"
-	}
-
-	return ""
-}
-
-func (b *LoanApprovalSvcImpl) isValidApprovalStatusTransition(currentStatus, newStatus enum.ApprovalStatus) bool {
-	validTransitions := map[enum.ApprovalStatus][]enum.ApprovalStatus{
-		enum.ApprovalPending: {enum.ApprovalApproved, enum.ApprovalRejected},
-	}
-
-	allowedStatuses, ok := validTransitions[currentStatus]
-	if !ok {
-		logrus.Warnf("No valid transitions for current status: %s", currentStatus)
-		return false
-	}
-
-	for _, status := range allowedStatuses {
-		if status == newStatus {
-			return true
-		}
-	}
-
-	logrus.Warnf("Invalid status transition from %s to %s", currentStatus, newStatus)
-	return false
 }

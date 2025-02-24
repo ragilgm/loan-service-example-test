@@ -3,13 +3,14 @@ package service
 import (
 	"context"
 	"errors"
-	"github.com/asaskevich/govalidator"
 	"github.com/mitchellh/mapstructure"
 	log "github.com/sirupsen/logrus"
 	"github.com/test/loan-service/internal/dto"
 	"github.com/test/loan-service/internal/dto/message"
 	"github.com/test/loan-service/internal/enum"
 	repo "github.com/test/loan-service/internal/repository"
+	"github.com/test/loan-service/internal/service/models"
+	"github.com/test/loan-service/internal/service/validator"
 	"github.com/test/loan-service/internal/utils"
 	"github.com/typical-go/typical-rest-server/pkg/dbtxn"
 	"go.uber.org/dig"
@@ -19,18 +20,12 @@ import (
 //go:generate mockgen -source=$GOFILE -destination=$PROJ/internal/generated/mock/mock_$GOPACKAGE/$GOFILE
 
 type (
-	LoanRequest struct {
-		Page   uint64
-		Size   uint64
-		Status *enum.LoanStatus
-	}
-
 	LoanSvc interface {
 		Create(context.Context, *dto.LoanRequestDTO) (int64, error)
 		ApprovalLoan(ctx context.Context, request message.UpdateLoanMessage) error
 		DisburseLoan(ctx context.Context, request message.UpdateLoanMessage) error
 		GetByID(ctx context.Context, loanID int64) (*dto.LoanResponseDTO, error)
-		GetAllPage(ctx context.Context, request LoanRequest) ([]dto.LoanResponseDTO, int, error)
+		GetAllPage(ctx context.Context, request models.LoanRequest) ([]dto.LoanResponseDTO, int, error)
 	}
 
 	LoanSvcImpl struct {
@@ -39,6 +34,7 @@ type (
 		LoanFundingRepo repo.LoanFundingRepo
 		LoanDetailSvc   LoanDetailSvc
 		LoanApprovalSvc LoanApprovalSvc
+		LoanValidator   validator.LoanValidatorImpl
 	}
 )
 
@@ -48,16 +44,17 @@ func NewLoanSvc(impl LoanSvcImpl) LoanSvc {
 
 func (b *LoanSvcImpl) Create(ctx context.Context, loanRequest *dto.LoanRequestDTO) (int64, error) {
 	// Validate request
-	if errMsg := b.validateRequestLoan(loanRequest); errMsg != "" {
+	err := b.LoanValidator.ValidateCreate(loanRequest)
+	if err != nil {
 		log.WithFields(log.Fields{
 			"borrowerID":    loanRequest.BorrowerID,
 			"requestAmount": loanRequest.RequestAmount,
-		}).Errorf("Validation failed: %s", errMsg)
-		return -1, errors.New(errMsg)
+		}).Errorf("Validation failed: %s", err)
+		return -1, err
 	}
 
 	var loan repo.Loan
-	err := mapstructure.Decode(loanRequest, &loan)
+	err = mapstructure.Decode(loanRequest, &loan)
 	if err != nil {
 		log.WithError(err).Error("Failed to decode loan request")
 		return -1, errors.New("99999")
@@ -136,7 +133,7 @@ func (b *LoanSvcImpl) ApprovalLoan(ctx context.Context, request message.UpdateLo
 	}
 
 	// Validate status transition
-	isValid := b.isValidStatusTransition(loan.LoanStatus, request.LoanStatus)
+	isValid := b.LoanValidator.ValidateTransitionStatus(loan.LoanStatus, request.LoanStatus)
 	if !isValid {
 		log.WithFields(log.Fields{
 			"currentStatus": loan.LoanStatus,
@@ -202,7 +199,7 @@ func (b *LoanSvcImpl) DisburseLoan(ctx context.Context, request message.UpdateLo
 	}
 
 	// Validate status transition
-	isValid := b.isValidStatusTransition(loan.LoanStatus, request.LoanStatus)
+	isValid := b.LoanValidator.ValidateTransitionStatus(loan.LoanStatus, request.LoanStatus)
 	if !isValid {
 		log.WithFields(log.Fields{
 			"currentStatus": loan.LoanStatus,
@@ -332,7 +329,7 @@ func (b *LoanSvcImpl) createLoanDetail(ctx context.Context, loan *dto.LoanReques
 	}).Info("Creating loan detail")
 
 	// Create loan detail
-	detailRequest := LoanDetailRequest{
+	detailRequest := models.LoanDetailRequest{
 		BorrowerID: loan.BorrowerID,
 		LoanID:     loanID,
 		Detail:     &loan.Detail,
@@ -378,73 +375,7 @@ func (b *LoanSvcImpl) createInitialApproval(ctx context.Context, loanID int64) (
 	return id, nil
 }
 
-func (b *LoanSvcImpl) validateRequestLoan(loan *dto.LoanRequestDTO) string {
-	// Validate the loan request
-	ok, err := govalidator.ValidateStruct(loan)
-	if !ok {
-		log.WithError(err).Error("Loan validation failed")
-		return "10003"
-	}
-
-	// Additional loan-specific validations
-	if loan.BorrowerID <= 0 {
-		log.Error("BorrowerID must be provided and greater than zero")
-		return "10003"
-	}
-
-	if loan.RequestAmount <= 0 {
-		log.Error("RequestAmount must be greater than zero")
-		return "10003"
-	}
-
-	if loan.LoanGrade == "" {
-		log.Error("LoanGrade must be provided")
-		return "10003"
-	}
-
-	if !loan.LoanType.IsValid() {
-		log.Error("Invalid LoanType")
-		return "10003"
-
-	}
-
-	if loan.Rate < 0 {
-		log.Error("Rate must be non-negative")
-		return "10003"
-	}
-
-	if loan.Tenures <= 0 {
-		log.Error("Tenures must be greater than zero")
-		return "10003"
-	}
-
-	return ""
-}
-
-func (b *LoanSvcImpl) isValidStatusTransition(currentStatus, newStatus enum.LoanStatus) bool {
-	// Valid status transitions for loans
-	validTransitions := map[enum.LoanStatus][]enum.LoanStatus{
-		enum.Proposed:  {enum.Approved, enum.Rejected},
-		enum.Approved:  {enum.Invested},
-		enum.Invested:  {enum.Disbursed},
-		enum.Disbursed: {enum.Completed},
-	}
-
-	allowedStatuses, ok := validTransitions[currentStatus]
-	if !ok {
-		return false
-	}
-
-	for _, status := range allowedStatuses {
-		if status == newStatus {
-			return true
-		}
-	}
-
-	return false
-}
-
-func (b *LoanSvcImpl) GetAllPage(ctx context.Context, request LoanRequest) ([]dto.LoanResponseDTO, int, error) {
+func (b *LoanSvcImpl) GetAllPage(ctx context.Context, request models.LoanRequest) ([]dto.LoanResponseDTO, int, error) {
 	// Log the request details, including pagination parameters
 	log.WithFields(log.Fields{
 		"page": request.Page,

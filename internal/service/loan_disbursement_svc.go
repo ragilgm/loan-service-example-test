@@ -4,8 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
-	"github.com/asaskevich/govalidator"
 	"github.com/mitchellh/mapstructure"
 	"github.com/segmentio/kafka-go"
 	log "github.com/sirupsen/logrus"
@@ -14,6 +12,8 @@ import (
 	message2 "github.com/test/loan-service/internal/dto/message"
 	"github.com/test/loan-service/internal/enum"
 	repo "github.com/test/loan-service/internal/repository"
+	"github.com/test/loan-service/internal/service/models"
+	"github.com/test/loan-service/internal/service/validator"
 	"github.com/test/loan-service/internal/utils"
 	"github.com/typical-go/typical-rest-server/pkg/dbtxn"
 	"go.uber.org/dig"
@@ -21,17 +21,11 @@ import (
 )
 
 type (
-	LoanDisbursementRequest struct {
-		Page   uint64
-		Size   uint64
-		Status *enum.LoanDisbursementStatus
-	}
-
 	LoanDisbursementSvc interface {
 		Create(context.Context, *dto.LoanDisbursementRequestDTO) error
 		Update(ctx context.Context, disbursementID int64, disbursementRequest *dto.UpdateLoanDisbursementRequestDTO) error
 		GetByID(ctx context.Context, disbursementID int64) (*dto.LoanDisbursementResponseDTO, error)
-		GetAllPage(ctx context.Context, request LoanDisbursementRequest) ([]dto.LoanDisbursementResponseDTO, int, error)
+		GetAllPage(ctx context.Context, request models.LoanDisbursementRequest) ([]dto.LoanDisbursementResponseDTO, int, error)
 	}
 
 	LoanDisbursementSvcImpl struct {
@@ -40,6 +34,7 @@ type (
 		LoanRepo      repo.LoanRepo
 		LoanDetailSvc LoanDetailSvc
 		KafkaWriter   *kafka.Writer
+		Validator     validator.LoanDisbursementValidatorImpl
 	}
 )
 
@@ -51,13 +46,14 @@ func (b *LoanDisbursementSvcImpl) Create(ctx context.Context, disbursementReques
 	log.Printf("Create loan disbursement: LoanID=%d, DisburseAmount=%f", disbursementRequest.LoanID, disbursementRequest.DisburseAmount)
 
 	// Validate request
-	if errMsg := b.validateRequestLoanDisbursement(disbursementRequest); errMsg != "" {
-		log.Printf("Validation failed: %s", errMsg)
-		return errors.New(errMsg)
+	err := b.Validator.ValidateCreate(disbursementRequest)
+	if err != nil {
+		log.Printf("Validation failed: %s", err)
+		return err
 	}
 
 	var disbursement repo.LoanDisbursement
-	err := mapstructure.Decode(disbursementRequest, &disbursement)
+	err = mapstructure.Decode(disbursementRequest, &disbursement)
 	if err != nil {
 		log.Printf("Error decoding disbursement request: %v", err)
 		return err
@@ -94,12 +90,13 @@ func (b *LoanDisbursementSvcImpl) Update(ctx context.Context, disbursementID int
 
 	}
 
-	if errMsg := b.updateValidateRequestLoanDisbursement(disbursementRequest); errMsg != "" {
-		log.Printf("Validation failed: %s", errMsg)
-		return errors.New(errMsg)
+	err = b.Validator.ValidateUpdate(disbursementRequest)
+	if err != nil {
+		log.Printf("Validation failed: %s", err)
+		return err
 	}
 
-	valid := b.validateTransitionStatus(disbursement.DisbursementStatus, disbursementRequest.DisbursementStatus)
+	valid := b.Validator.ValidateTransitionStatus(disbursement.DisbursementStatus, disbursementRequest.DisbursementStatus)
 	if !valid {
 		log.Printf("Invalid status transition: CurrentStatus=%v, RequestedStatus=%v", disbursement.DisbursementStatus, disbursementRequest.DisbursementStatus)
 		return errors.New("10003")
@@ -171,30 +168,6 @@ func (b *LoanDisbursementSvcImpl) publishDisburseLoan(ctx context.Context, loanI
 	return nil
 }
 
-func (b *LoanDisbursementSvcImpl) validateTransitionStatus(existing enum.LoanDisbursementStatus, new enum.LoanDisbursementStatus) bool {
-	log.Printf("Validating status transition: ExistingStatus=%v, NewStatus=%v", existing, new)
-	validTransitions := map[enum.LoanDisbursementStatus][]enum.LoanDisbursementStatus{
-		enum.LoanDisbursementPending:   {enum.LoanDisbursementCompleted, enum.LoanDisbursementCancelled},
-		enum.LoanDisbursementCompleted: {}, // No transitions from Success
-		enum.LoanDisbursementCancelled: {}, // No transitions from Failed
-	}
-
-	allowedStatuses, ok := validTransitions[existing]
-	if !ok {
-		log.Printf("No valid transitions found for status: %v", existing)
-		return false
-	}
-
-	for _, status := range allowedStatuses {
-		if status == new {
-			log.Printf("Valid transition found: %v -> %v", existing, new)
-			return true
-		}
-	}
-	log.Printf("Invalid transition: %v -> %v", existing, new)
-	return false
-}
-
 func (b *LoanDisbursementSvcImpl) GetByID(ctx context.Context, disbursementID int64) (*dto.LoanDisbursementResponseDTO, error) {
 	log.Printf("Get loan disbursement by ID: DisbursementID=%d", disbursementID)
 
@@ -224,7 +197,7 @@ func (b *LoanDisbursementSvcImpl) GetByID(ctx context.Context, disbursementID in
 	return &disbursementResponse, nil
 }
 
-func (b *LoanDisbursementSvcImpl) GetAllPage(ctx context.Context, request LoanDisbursementRequest) ([]dto.LoanDisbursementResponseDTO, int, error) {
+func (b *LoanDisbursementSvcImpl) GetAllPage(ctx context.Context, request models.LoanDisbursementRequest) ([]dto.LoanDisbursementResponseDTO, int, error) {
 	log.Printf("Get loan disbursements page: Page=%d, Size=%d", request.Page, request.Size)
 
 	offset := (request.Page - 1) * request.Size
@@ -261,60 +234,4 @@ func (b *LoanDisbursementSvcImpl) GetAllPage(ctx context.Context, request LoanDi
 
 	log.Printf("Loan disbursements retrieved successfully: TotalRecords=%d", totalRecords)
 	return disbursementDTOs, int(totalRecords), nil
-}
-
-func (b *LoanDisbursementSvcImpl) validateRequestLoanDisbursement(disbursement *dto.LoanDisbursementRequestDTO) string {
-	log.Printf("Validating loan disbursement request: LoanID=%d", disbursement.LoanID)
-
-	ok, err := govalidator.ValidateStruct(disbursement)
-	if !ok {
-		log.Printf("Validation failed: %s", err)
-		return fmt.Sprintf("Validasi gagal: %s", err)
-	}
-
-	if disbursement.DisburseAmount <= 0 {
-		log.Printf("DisburseAmount must be greater than zero")
-		return "DisburseAmount must be greater than zero"
-	}
-
-	if disbursement.LoanID <= 0 {
-		log.Printf("LoanID must be provided and greater than zero")
-		return "LoanID must be provided and greater than zero"
-	}
-
-	log.Printf("Validation passed for loan disbursement request: LoanID=%d", disbursement.LoanID)
-	return ""
-}
-
-func (b *LoanDisbursementSvcImpl) updateValidateRequestLoanDisbursement(disbursement *dto.UpdateLoanDisbursementRequestDTO) string {
-	log.Printf("Validating update loan disbursement request: LoanID=%d", disbursement.LoanID)
-
-	ok, err := govalidator.ValidateStruct(disbursement)
-	if !ok {
-		log.Printf("Validation failed: %s", err)
-		return "10003"
-	}
-
-	if disbursement.LoanID <= 0 {
-		log.Printf("LoanID must be provided and greater than zero")
-		return "10003"
-	}
-
-	if !disbursement.DisbursementStatus.IsValid() {
-		log.Printf("Invalid DisbursementStatus: %v", disbursement.DisbursementStatus)
-		return "10003"
-	}
-
-	if disbursement.StaffID <= 0 {
-		log.Printf("StaffID must be provided and greater than zero")
-		return "10003"
-	}
-
-	if disbursement.SignedAgreementURL == "" {
-		log.Printf("SignedAgreementURL must be provided")
-		return "10003"
-	}
-
-	log.Printf("Validation passed for update loan disbursement request: LoanID=%d", disbursement.LoanID)
-	return ""
 }

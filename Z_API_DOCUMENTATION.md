@@ -65,7 +65,7 @@ This document provides the API details for the **Golang Project Test**. Below ar
 
 - **Description**:
   - API ini memungkinkan tim approval untuk melihat daftar semua pinjaman yang sedang dalam proses approval Dengan menggunakan parameter query, tim approval dapat melihat pinjaman berdasarkan status persetujuan tertentu seperti "pending" atau mengambil data berdasarkan paginasi (halaman dan ukuran data per halaman).
-
+  - Note : data ini akan ada hanya jika ada loan masuk 
 - **Method**: `GET`
 - **Endpoint**: `/loans/approvals?page=1&size=10`
 - **Query Parameters**:
@@ -156,6 +156,9 @@ This document provides the API details for the **Golang Project Test**. Below ar
 ### 4.1 Get All Loan Disbursements
 - **Description**:
   - API ini untuk membantu tim approval untuk mendapatkan daftar disbursement pinjaman baik itu yang belum di prosess `pending` sudah di prosess `completed` atau yang di batalkan `canceled`
+  - Note : data ini akan ada hanya jika data loan sudah berhasil di invest oleh lender, untuk mencapai hal ini , loan perlu di invest oleh lender sebanyak x ( yang di butuhkan oleh borrower )
+
+  
 - **Method**: `GET`
 - **Endpoint**: `/loan-disbursements?page=1&size=10&approval_status=pending`
 - **Query Parameters**:

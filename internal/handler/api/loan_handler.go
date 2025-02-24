@@ -3,6 +3,7 @@ package api
 import (
 	"errors"
 	"github.com/test/loan-service/internal/enum"
+	"github.com/test/loan-service/internal/service/models"
 	"strconv"
 
 	"github.com/labstack/echo"
@@ -73,7 +74,7 @@ func (ic *LoanCtrlImpl) GetAll(c echo.Context) (err error) {
 
 	ctx := c.Request().Context()
 
-	request := service.LoanRequest{
+	request := models.LoanRequest{
 		Page:   uint64(page),
 		Size:   uint64(size),
 		Status: &loanStatus,

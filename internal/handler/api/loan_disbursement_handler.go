@@ -6,6 +6,7 @@ import (
 	"github.com/test/loan-service/internal/dto"
 	"github.com/test/loan-service/internal/enum"
 	"github.com/test/loan-service/internal/service"
+	"github.com/test/loan-service/internal/service/models"
 	"go.uber.org/dig"
 	"net/http"
 	"strconv"
@@ -97,7 +98,7 @@ func (ldh *LoanDisbursementHandler) GetAll(c echo.Context) error {
 	}
 
 	// Prepare request object for the service
-	request := service.LoanDisbursementRequest{
+	request := models.LoanDisbursementRequest{
 		Page:   page,
 		Size:   size,
 		Status: &disburseStatus,
